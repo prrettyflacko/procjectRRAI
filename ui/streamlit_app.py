@@ -15,6 +15,7 @@ import uuid
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
+import pandas as pd
 import requests
 import streamlit as st
 
@@ -228,6 +229,24 @@ def render_bubble(role: str, text: str) -> None:
     )
 
 
+def render_result(rows: list) -> None:
+    """Если результат табличный — показываем график (по категориальной + числовой
+    колонке) и саму таблицу."""
+    if not rows or len(rows) < 2:
+        return
+    try:
+        df = pd.DataFrame(rows)
+    except Exception:  # noqa: BLE001
+        return
+    numeric = [c for c in df.columns if pd.api.types.is_numeric_dtype(df[c])]
+    labels = [c for c in df.columns if c not in numeric]
+    if numeric and labels:
+        with st.expander("📊 График", expanded=True):
+            st.bar_chart(df.set_index(labels[0])[numeric])
+    with st.expander("📋 Данные"):
+        st.dataframe(df, use_container_width=True)
+
+
 # Навигация одной строкой (одна страница за раз — чтобы chat_input прилипал к низу).
 nav = st.segmented_control(
     "nav",
@@ -279,8 +298,10 @@ elif nav == "🤖 Агент 1":
                 st.rerun()
 
         # Уже накопленный диалог (сверху вниз).
-        for role, text, sql in st.session_state.chat:
+        for role, text, sql, rows in st.session_state.chat:
             render_bubble(role, text)
+            if rows:
+                render_result(rows)
             if sql:
                 with st.expander("Показать SQL"):
                     st.code(sql, language="sql")
@@ -289,7 +310,7 @@ elif nav == "🤖 Агент 1":
         prompt = st.chat_input("Например: какой средний чек по городам?")
         if prompt and prompt.strip():
             render_bubble("user", prompt)
-            st.session_state.chat.append(("user", prompt, None))
+            st.session_state.chat.append(("user", prompt, None, None))
             try:
                 with st.spinner("Думаю над данными..."):
                     res = api_query({
@@ -298,13 +319,16 @@ elif nav == "🤖 Агент 1":
                         "session_id": st.session_state.session_id,
                     })
                 answer, sql = res["answer"], res.get("sql")
+                rows = res.get("result_rows", [])
             except Exception as exc:  # noqa: BLE001
-                answer, sql = f"Ошибка: {exc}", None
+                answer, sql, rows = f"Ошибка: {exc}", None, []
             render_bubble("ai", answer)
+            if rows:
+                render_result(rows)
             if sql:
                 with st.expander("Показать SQL"):
                     st.code(sql, language="sql")
-            st.session_state.chat.append(("ai", answer, sql))
+            st.session_state.chat.append(("ai", answer, sql, rows))
 
 
 # ---------------------------------------------------------------- Агент 2 (друга)

@@ -44,6 +44,7 @@ class QueryResponse(BaseModel):
     answer: str
     needs_clarification: bool
     sql: str | None = None
+    result_rows: list = []
 
 
 class Query2Response(BaseModel):

@@ -61,6 +61,7 @@ def query(req: QueryRequest, db: Session = Depends(get_db)) -> QueryResponse:
         answer=answer,
         needs_clarification=result.get("needs_clarification", False),
         sql=result.get("sql"),
+        result_rows=result.get("result_rows", []),
     )
 
 

@@ -3,3 +3,4 @@
 # Тяжёлый бэкенд-стек (fastapi/langgraph/sqlalchemy/boto3) сюда не нужен.
 streamlit>=1.58
 requests>=2.32
+pandas>=2.0

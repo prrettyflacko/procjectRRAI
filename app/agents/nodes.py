@@ -8,11 +8,23 @@
   synthesizer — превращает сырой результат в человекочитаемый ответ.
 """
 
+from datetime import date, datetime
+from decimal import Decimal
+
 from langchain_core.messages import AIMessage
 from sqlalchemy import text
 
 from app.db.database import SessionLocal
 from app.llm import get_llm
+
+
+def _to_jsonable(value):
+    """Приводит значения из БД к JSON-совместимым (Decimal→float, дата→строка)."""
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    return value
 
 llm = get_llm()
 
@@ -67,17 +79,18 @@ def _clean_sql(raw: str) -> str:
     return sql.strip().rstrip(";").strip()
 
 
-def _run_sql(sql: str) -> tuple[str, str | None]:
-    """Выполняет SELECT. Возвращает (результат_как_текст, текст_ошибки|None)."""
+def _run_sql(sql: str) -> tuple[list[dict], str | None]:
+    """Выполняет SELECT. Возвращает (строки_результата, текст_ошибки|None)."""
     if not sql.lower().startswith(("select", "with")):
-        return "", "разрешён только SELECT-запрос"
+        return [], "разрешён только SELECT-запрос"
 
     db = SessionLocal()
     try:
         result = db.execute(text(sql)).mappings().all()
-        return str([dict(r) for r in result]), None
+        rows = [{k: _to_jsonable(v) for k, v in dict(r).items()} for r in result]
+        return rows, None
     except Exception as exc:  # noqa: BLE001 — текст ошибки вернём для самоисправления
-        return "", str(exc)
+        return [], str(exc)
     finally:
         db.close()
 
@@ -137,7 +150,7 @@ def sql_agent(state: dict) -> dict:
     sql = _clean_sql(
         llm.invoke([("system", system), *state["messages"]]).content
     )
-    rows, error = _run_sql(sql)
+    result_rows, error = _run_sql(sql)
 
     # Самоисправление: если SQL упал, отдаём модели текст ошибки и просим починить (1 раз).
     if error is not None:
@@ -148,12 +161,12 @@ def sql_agent(state: dict) -> dict:
         sql = _clean_sql(
             llm.invoke([("system", system), ("user", fix_prompt)]).content
         )
-        rows, error = _run_sql(sql)
+        result_rows, error = _run_sql(sql)
 
     if error is not None:
-        rows = f"ОШИБКА выполнения SQL: {error}"
+        return {"sql": sql, "rows": f"ОШИБКА выполнения SQL: {error}", "result_rows": []}
 
-    return {"sql": sql, "rows": rows}
+    return {"sql": sql, "rows": str(result_rows), "result_rows": result_rows}
 
 
 def synthesizer(state: dict) -> dict:

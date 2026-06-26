@@ -19,6 +19,7 @@ class GraphState(TypedDict):
     dataset_id: int          # с каким датасетом работаем
     schema: str              # перечень колонок датасета (для промптов)
     sql: str                 # сгенерированный SQL
-    rows: str                # результат выполнения SQL (как текст)
+    rows: str                # результат выполнения SQL (как текст, для синтезатора)
+    result_rows: list        # результат выполнения SQL (структурой, для графиков/таблиц)
     answer: str              # финальный ответ пользователю
     needs_clarification: bool  # True — если нужен уточняющий вопрос
