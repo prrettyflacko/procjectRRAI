@@ -1,4 +1,4 @@
-"""DataMind — веб-интерфейс (Streamlit) в стиле Pinterest.
+"""DataMind — веб-интерфейс (Streamlit) в пастельном стиле Pinterest.
 
 Тонкий клиент: рисует UI и общается с нашим API по HTTP (requests).
 Вся логика (SQL, LLM, БД) — на сервере за API.
@@ -12,9 +12,24 @@
 import hashlib
 import os
 import uuid
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 import requests
 import streamlit as st
+
+MSK = ZoneInfo("Europe/Moscow")
+
+
+def to_msk(iso: str, fmt: str = "%Y-%m-%d %H:%M") -> str:
+    """Время из API хранится в UTC — показываем в московском времени."""
+    try:
+        dt = datetime.fromisoformat(iso)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(MSK).strftime(fmt)
+    except Exception:
+        return iso[:16]
 
 # ---------------------------------------------------------------- настройки
 
@@ -31,12 +46,12 @@ API_URL = _conf("API_URL", "http://localhost:8000").rstrip("/")
 API_KEY = _conf("API_KEY", "")
 HEADERS = {"X-API-Key": API_KEY} if API_KEY else {}
 
-# Палитра градиентов для «обложек» карточек (рандомно, но стабильно по имени).
+# Пастельные «мужские» градиенты для обложек (сталь/шалфей/камень/деним).
 GRADIENTS = [
-    ("#FF6B6B", "#FFD93D"), ("#6A11CB", "#2575FC"), ("#11998E", "#38EF7D"),
-    ("#F953C6", "#B91D73"), ("#FF512F", "#DD2476"), ("#1FA2FF", "#12D8FA"),
-    ("#F7971E", "#FFD200"), ("#8E2DE2", "#4A00E0"), ("#00C9FF", "#92FE9D"),
-    ("#FC466B", "#3F5EFB"),
+    ("#C6D3DE", "#DCE4EA"), ("#CBD9CE", "#E2E8DD"), ("#BFD7D4", "#DCE9E6"),
+    ("#C3CCD9", "#DDE3EC"), ("#D8D2C6", "#EAE5DB"), ("#D0D4C0", "#E4E6D8"),
+    ("#BCC9D6", "#D6DEE6"), ("#C2D2D2", "#DBE6E4"), ("#CFD3D6", "#E5E8EA"),
+    ("#C4CFDD", "#DBE2EC"),
 ]
 
 
@@ -68,46 +83,60 @@ def api_upload(name: str, data: bytes):
 
 # ---------------------------------------------------------------- страница
 
-st.set_page_config(page_title="DataMind", page_icon="📌", layout="wide")
+st.set_page_config(page_title="DataMind", page_icon="📊", layout="wide")
 
 CSS = """
 <style>
 #MainMenu, footer, header {visibility: hidden;}
-.stApp {background: #f4f4f6;}
-.block-container {padding-top: 1.5rem; max-width: 1300px;}
+.block-container {padding-top: 1.2rem; max-width: 1280px;}
 
-/* Заголовок-бренд */
-.brand {font-size: 2.2rem; font-weight: 800; color: #111;
-        letter-spacing: -1px; margin-bottom: .2rem;}
-.brand span {color: #E60023;}
-.subtitle {color: #767676; margin-bottom: 1.2rem;}
+/* Шапка-бренд */
+.brand {font-size: 2.4rem; font-weight: 800; color:#33404A;
+        letter-spacing:-1px; margin-bottom:.1rem;}
+.brand span {color:#5E7E92;}
+.subtitle {color:#8795A0; margin-bottom:.6rem; font-size:1rem;}
+
+/* Вкладки покрупнее и помягче */
+.stTabs [data-baseweb="tab-list"] {gap: 8px;}
+.stTabs [data-baseweb="tab"] {
+  background:#E8ECEC; border-radius:999px; padding:8px 18px; font-weight:600;
+}
+.stTabs [aria-selected="true"] {background:#5E7E92 !important; color:#fff !important;}
 
 /* Masonry-лента */
-.masonry {column-count: 3; column-gap: 18px;}
+.masonry {column-count: 3; column-gap: 18px; margin-top: 6px;}
 @media (max-width: 1100px) {.masonry {column-count: 2;}}
 @media (max-width: 700px)  {.masonry {column-count: 1;}}
 
 .card {
-  break-inside: avoid; background: #fff; border-radius: 18px;
-  margin-bottom: 18px; overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,.06);
+  break-inside: avoid; background:#fff; border-radius:22px;
+  margin-bottom:18px; overflow:hidden; box-shadow:0 2px 10px rgba(60,75,90,.10);
   transition: transform .18s ease, box-shadow .18s ease;
 }
-.card:hover {transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,.14);}
+.card:hover {transform: translateY(-4px); box-shadow:0 10px 26px rgba(60,75,90,.20);}
 .cover {display:flex; align-items:center; justify-content:center;
-        color:#fff; font-weight:800; font-size:2.4rem;}
-.card-body {padding: 14px 16px 18px;}
-.card-title {font-weight: 700; font-size: 1.05rem; color:#111; margin-bottom:6px;
-             word-break: break-word;}
-.card-meta {color:#767676; font-size:.85rem;}
-.pill {display:inline-block; background:#efefef; color:#333; border-radius:999px;
-       padding:3px 10px; font-size:.78rem; margin-top:8px; margin-right:6px;}
-.q {font-weight:700; color:#111;}
-.a {color:#333; margin-top:6px; white-space:pre-wrap;}
+        color:rgba(51,64,74,.55); font-weight:800; font-size:2.6rem;}
+.card-body {padding:14px 18px 18px;}
+.card-title {font-weight:700; font-size:1.05rem; color:#33404A; margin-bottom:6px;
+             word-break:break-word;}
+.card-meta {color:#8795A0; font-size:.85rem;}
+.pill {display:inline-block; background:#E8ECEC; color:#5A6670; border-radius:999px;
+       padding:3px 11px; font-size:.78rem; margin-top:8px; margin-right:6px;}
+.q {font-weight:700; color:#33404A;}
+.a {color:#4F5963; margin-top:6px; white-space:pre-wrap;}
 
-/* Кнопки Streamlit под Pinterest */
-.stButton>button {border-radius: 999px; background:#E60023; color:#fff;
-   border:none; font-weight:700; padding:.5rem 1.2rem;}
-.stButton>button:hover {background:#ad081b; color:#fff;}
+/* Чат-бабблы (свои, чтобы текст был точно виден) */
+.bubble {border-radius:18px; padding:12px 16px; margin:8px 0; max-width:85%;
+         line-height:1.45;}
+.bubble-user {background:#D3DEE8; color:#2E3A44; margin-left:auto;
+              border-bottom-right-radius:4px;}
+.bubble-ai {background:#D7E3DD; color:#2E3A3A; margin-right:auto;
+            border-bottom-left-radius:4px;}
+.bubble .who {font-size:.78rem; font-weight:700; opacity:.7; margin-bottom:3px;}
+
+.stButton>button {border-radius:999px; background:#5E7E92; color:#fff;
+   border:none; font-weight:700; padding:.5rem 1.4rem;}
+.stButton>button:hover {background:#4d6a7c; color:#fff;}
 </style>
 """
 st.markdown(CSS, unsafe_allow_html=True)
@@ -115,26 +144,10 @@ st.markdown(CSS, unsafe_allow_html=True)
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
 if "chat" not in st.session_state:
-    st.session_state.chat = []  # список (role, text)
+    st.session_state.chat = []  # список (role, text, sql)
 
 
-# ---------------------------------------------------------------- sidebar
-
-with st.sidebar:
-    st.markdown("## 📌 DataMind")
-    page = st.radio(
-        "Навигация",
-        ["📌 Лента", "⬆️ Загрузить", "💬 Спросить", "🕘 История"],
-        label_visibility="collapsed",
-    )
-    st.divider()
-    # Статус подключения (health открыт без ключа).
-    try:
-        api_get("/health")
-        st.success(f"API подключён\n\n{API_URL}")
-    except Exception as exc:  # noqa: BLE001
-        st.error(f"Нет связи с API\n\n{API_URL}\n\n{exc}")
-
+# ---------------------------------------------------------------- helpers
 
 def render_masonry(cards_html: list[str]) -> None:
     st.markdown(f'<div class="masonry">{"".join(cards_html)}</div>',
@@ -145,7 +158,7 @@ def dataset_card(ds: dict) -> str:
     c1, c2 = _gradient(ds["name"])
     height = 120 + (int(hashlib.md5(ds["name"].encode()).hexdigest(), 16) % 90)
     letter = ds["name"][:1].upper()
-    date = ds["created_at"][:10]
+    date = to_msk(ds["created_at"], "%Y-%m-%d")
     return f"""
     <div class="card">
       <div class="cover" style="height:{height}px;
@@ -161,42 +174,62 @@ def dataset_card(ds: dict) -> str:
 
 def history_card(item: dict) -> str:
     c1, c2 = _gradient(item["question"])
-    date = item["created_at"][:16].replace("T", " ")
+    date = to_msk(item["created_at"]) + " МСК"
+    ans = (item["answer"] or "").replace("<", "&lt;").replace(">", "&gt;")
+    q = (item["question"] or "").replace("<", "&lt;").replace(">", "&gt;")
     return f"""
     <div class="card">
-      <div class="cover" style="height:8px;
+      <div class="cover" style="height:10px;
            background:linear-gradient(135deg,{c1},{c2});"></div>
       <div class="card-body">
-        <div class="q">❓ {item['question']}</div>
-        <div class="a">{item['answer']}</div>
+        <div class="q">❓ {q}</div>
+        <div class="a">{ans}</div>
         <span class="pill">датасет #{item['dataset_id']}</span>
         <span class="pill">{date}</span>
       </div>
     </div>"""
 
 
-# ---------------------------------------------------------------- pages
+# ---------------------------------------------------------------- шапка
 
-if page == "📌 Лента":
-    st.markdown('<div class="brand">Data<span>Mind</span></div>', unsafe_allow_html=True)
-    st.markdown('<div class="subtitle">Твои датасеты — спроси у них что угодно</div>',
+col_title, col_status = st.columns([3, 1])
+with col_title:
+    st.markdown('<div class="brand">Data<span>Mind</span> 📊</div>',
                 unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">Загрузи данные и спроси у них что угодно</div>',
+                unsafe_allow_html=True)
+with col_status:
     try:
-        datasets = api_get("/datasets")
-        if datasets:
-            render_masonry([dataset_card(d) for d in datasets])
-        else:
-            st.info("Пока нет датасетов. Загрузи первый на вкладке «Загрузить».")
-    except Exception as exc:  # noqa: BLE001
-        st.error(f"Не удалось загрузить датасеты: {exc}")
+        api_get("/health")
+        st.success("API на связи", icon="✅")
+    except Exception:  # noqa: BLE001
+        st.error("Нет связи с API", icon="⚠️")
+
+def render_bubble(role: str, text: str) -> None:
+    who = "Ты" if role == "user" else "🤖 DataMind"
+    cls = "bubble-user" if role == "user" else "bubble-ai"
+    safe = (text or "").replace("<", "&lt;").replace(">", "&gt;")
+    st.markdown(
+        f'<div class="bubble {cls}"><div class="who">{who}</div>{safe}</div>',
+        unsafe_allow_html=True,
+    )
 
 
-elif page == "⬆️ Загрузить":
-    st.markdown('<div class="brand">Загрузить CSV</div>', unsafe_allow_html=True)
-    st.markdown('<div class="subtitle">Файл распарсится и сохранится в базе</div>',
-                unsafe_allow_html=True)
+# Навигация одной строкой (одна страница за раз — чтобы chat_input прилипал к низу).
+nav = st.segmented_control(
+    "nav",
+    ["📌 Лента", "⬆️ Загрузить", "💬 Спросить", "🕘 История"],
+    default="📌 Лента",
+    label_visibility="collapsed",
+) or "📌 Лента"
+
+
+# ---------------------------------------------------------------- Загрузить
+
+if nav == "⬆️ Загрузить":
+    st.write("#### Загрузить CSV")
     up = st.file_uploader("Выбери CSV-файл", type=["csv"])
-    if up is not None and st.button("Загрузить"):
+    if up is not None and st.button("Загрузить", key="upload_btn"):
         with st.spinner("Загружаем и парсим..."):
             try:
                 res = api_upload(up.name, up.getvalue())
@@ -208,8 +241,9 @@ elif page == "⬆️ Загрузить":
                 st.error(f"Ошибка загрузки: {exc}")
 
 
-elif page == "💬 Спросить":
-    st.markdown('<div class="brand">Спросить у данных</div>', unsafe_allow_html=True)
+# ---------------------------------------------------------------- Спросить
+
+elif nav == "💬 Спросить":
     try:
         datasets = api_get("/datasets")
     except Exception as exc:  # noqa: BLE001
@@ -220,41 +254,49 @@ elif page == "💬 Спросить":
         st.info("Сначала загрузи датасет.")
     else:
         options = {f"#{d['id']} — {d['name']}": d["id"] for d in datasets}
-        chosen = st.selectbox("Датасет", list(options.keys()))
+        col_ds, col_clear = st.columns([4, 1])
+        with col_ds:
+            chosen = st.selectbox("Датасет", list(options.keys()))
         dataset_id = options[chosen]
+        with col_clear:
+            st.write("")
+            if st.session_state.chat and st.button("Очистить", key="clear_chat"):
+                st.session_state.chat = []
+                st.session_state.session_id = str(uuid.uuid4())
+                st.rerun()
 
-        # История диалога
-        for role, text in st.session_state.chat:
-            with st.chat_message("user" if role == "q" else "assistant"):
-                st.write(text)
+        # Уже накопленный диалог (сверху вниз).
+        for role, text, sql in st.session_state.chat:
+            render_bubble(role, text)
+            if sql:
+                with st.expander("Показать SQL"):
+                    st.code(sql, language="sql")
 
-        question = st.chat_input("Например: какой средний чек по городам?")
-        if question:
-            st.session_state.chat.append(("q", question))
-            with st.chat_message("user"):
-                st.write(question)
-            with st.chat_message("assistant"):
-                with st.spinner("Думаю..."):
-                    try:
-                        res = api_query({
-                            "dataset_id": dataset_id,
-                            "question": question,
-                            "session_id": st.session_state.session_id,
-                        })
-                        answer = res["answer"]
-                        st.write(answer)
-                        if res.get("sql"):
-                            with st.expander("Показать SQL"):
-                                st.code(res["sql"], language="sql")
-                        st.session_state.chat.append(("a", answer))
-                    except Exception as exc:  # noqa: BLE001
-                        st.error(f"Ошибка: {exc}")
+        # Поле ввода закреплено внизу страницы (как в мессенджерах).
+        prompt = st.chat_input("Например: какой средний чек по городам?")
+        if prompt and prompt.strip():
+            render_bubble("user", prompt)
+            st.session_state.chat.append(("user", prompt, None))
+            try:
+                with st.spinner("Думаю над данными..."):
+                    res = api_query({
+                        "dataset_id": dataset_id,
+                        "question": prompt,
+                        "session_id": st.session_state.session_id,
+                    })
+                answer, sql = res["answer"], res.get("sql")
+            except Exception as exc:  # noqa: BLE001
+                answer, sql = f"Ошибка: {exc}", None
+            render_bubble("ai", answer)
+            if sql:
+                with st.expander("Показать SQL"):
+                    st.code(sql, language="sql")
+            st.session_state.chat.append(("ai", answer, sql))
 
 
-elif page == "🕘 История":
-    st.markdown('<div class="brand">История запросов</div>', unsafe_allow_html=True)
-    st.markdown('<div class="subtitle">Все вопросы и ответы из query_log</div>',
-                unsafe_allow_html=True)
+# ---------------------------------------------------------------- История
+
+elif nav == "🕘 История":
     try:
         items = api_get("/history", params={"limit": 60})
         if items:
@@ -263,3 +305,16 @@ elif page == "🕘 История":
             st.info("История пуста — задай первый вопрос.")
     except Exception as exc:  # noqa: BLE001
         st.error(f"Не удалось загрузить историю: {exc}")
+
+
+# ---------------------------------------------------------------- Лента (default)
+
+else:
+    try:
+        datasets = api_get("/datasets")
+        if datasets:
+            render_masonry([dataset_card(d) for d in datasets])
+        else:
+            st.info("Пока нет датасетов. Загрузи первый на вкладке «Загрузить».")
+    except Exception as exc:  # noqa: BLE001
+        st.error(f"Не удалось загрузить датасеты: {exc}")
