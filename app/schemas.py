@@ -44,3 +44,13 @@ class QueryResponse(BaseModel):
     answer: str
     needs_clarification: bool
     sql: str | None = None
+
+
+class QueryLogOut(BaseModel):
+    id: int
+    dataset_id: int
+    question: str
+    answer: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

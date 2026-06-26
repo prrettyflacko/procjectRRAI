@@ -2,9 +2,10 @@
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
 from app.api import datasets, query
+from app.auth import require_api_key
 from app.db.database import Base, engine
 from app.db import models  # noqa: F401 — нужен, чтобы модели зарегистрировались в Base
 
@@ -23,8 +24,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.include_router(datasets.router)
-app.include_router(query.router)
+app.include_router(datasets.router, dependencies=[Depends(require_api_key)])
+app.include_router(query.router, dependencies=[Depends(require_api_key)])
 
 
 @app.get("/health")

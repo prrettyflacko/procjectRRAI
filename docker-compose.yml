@@ -16,5 +16,19 @@ services:
       timeout: 5s
       retries: 5
 
+  api:
+    build: .
+    container_name: datamind-api
+    env_file: .env
+    environment:
+      # Внутри compose БД доступна по имени сервиса db, а не localhost.
+      DATABASE_URL: postgresql://user:pass@db:5432/datamind
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:

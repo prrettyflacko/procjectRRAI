@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     # База данных
     DATABASE_URL: str
 
+    # Защита API: если задан — каждый запрос должен слать заголовок X-API-Key.
+    # Пусто (по умолчанию) — защита выключена (удобно для локальной разработки).
+    API_KEY: str = ""
+
     # LLM (polza.ai — OpenAI-совместимый шлюз)
     POLZA_API_KEY: str
     POLZA_BASE_URL: str = "https://api.polza.ai/api/v1"

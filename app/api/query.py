@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.agents.graph import graph
 from app.db.database import get_db
 from app.db.models import Dataset, DatasetRow, QueryLog
-from app.schemas import QueryRequest, QueryResponse
+from app.schemas import QueryLogOut, QueryRequest, QueryResponse
 
 router = APIRouter(tags=["query"])
 
@@ -61,3 +61,16 @@ def query(req: QueryRequest, db: Session = Depends(get_db)) -> QueryResponse:
         needs_clarification=result.get("needs_clarification", False),
         sql=result.get("sql"),
     )
+
+
+@router.get("/history", response_model=list[QueryLogOut])
+def history(
+    dataset_id: int | None = None,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+) -> list[QueryLog]:
+    """Возвращает историю вопросов/ответов (опционально по датасету)."""
+    stmt = select(QueryLog).order_by(QueryLog.created_at.desc()).limit(limit)
+    if dataset_id is not None:
+        stmt = stmt.where(QueryLog.dataset_id == dataset_id)
+    return list(db.scalars(stmt))

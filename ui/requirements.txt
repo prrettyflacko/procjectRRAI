@@ -1,0 +1,5 @@
+# Зависимости ТОЛЬКО для Streamlit-UI (деплой на Streamlit Cloud).
+# UI — тонкий клиент: рисует интерфейс и ходит в наш API по HTTP.
+# Тяжёлый бэкенд-стек (fastapi/langgraph/sqlalchemy/boto3) сюда не нужен.
+streamlit>=1.58
+requests>=2.32
