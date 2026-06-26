@@ -82,8 +82,44 @@ def _run_sql(sql: str) -> tuple[str, str | None]:
         db.close()
 
 
+def _column_value_hints(dataset_id: int, columns: list[str], max_distinct: int = 30) -> list[str]:
+    """Возвращает реальные значения категориальных колонок (где их мало).
+
+    Нужно, чтобы агент фильтровал по НАСТОЯЩИМ значениям из базы, а не выдумывал
+    («СПб» вместо «Санкт-Петербург»). Колонки с большим числом значений пропускаем.
+    """
+    db = SessionLocal()
+    hints: list[str] = []
+    try:
+        for col in columns:
+            rows = db.execute(
+                text(
+                    "SELECT DISTINCT row_data->>:c AS v FROM dataset_rows "
+                    "WHERE dataset_id = :d LIMIT :lim"
+                ),
+                {"c": col, "d": dataset_id, "lim": max_distinct + 1},
+            ).all()
+            vals = [r[0] for r in rows if r[0] is not None]
+            if 0 < len(vals) <= max_distinct:
+                hints.append(f"- {col}: {', '.join(map(str, vals))}")
+    finally:
+        db.close()
+    return hints
+
+
 def sql_agent(state: dict) -> dict:
     """Генерирует SQL по вопросу и выполняет его. При ошибке — одна попытка исправления."""
+    columns = [c.strip() for c in state["schema"].split(",") if c.strip()]
+    hints = _column_value_hints(state["dataset_id"], columns)
+    hints_block = ""
+    if hints:
+        hints_block = (
+            "Реальные значения категориальных колонок (используй ТОЛЬКО их):\n"
+            + "\n".join(hints) + "\n"
+            "Если пользователь написал синоним или сокращение (например, 'СПб', 'спб', "
+            "'питер'), сопоставь его с ближайшим по смыслу значением из списка "
+            "('Санкт-Петербург'). Никогда не придумывай значения, которых нет в списке.\n"
+        )
     system = (
         "Ты пишешь ОДИН SQL-запрос для PostgreSQL.\n"
         "Данные лежат в таблице dataset_rows: каждая строка исходного CSV хранится в "
@@ -93,7 +129,8 @@ def sql_agent(state: dict) -> dict:
         "ВАЖНО: row_data есть только в таблице dataset_rows. В подзапросах обращайся к "
         "колонкам по их алиасам, а не к row_data снова.\n"
         f"Доступные колонки внутри row_data: {state['schema']}.\n"
-        f"ОБЯЗАТЕЛЬНО добавь условие WHERE dataset_id = {state['dataset_id']}.\n"
+        + hints_block
+        + f"ОБЯЗАТЕЛЬНО добавь условие WHERE dataset_id = {state['dataset_id']}.\n"
         "Учитывай всю историю диалога (вопрос пользователя и уточнения).\n"
         "Используй только SELECT. Верни ТОЛЬКО SQL, без пояснений и без markdown."
     )
