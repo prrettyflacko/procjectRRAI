@@ -16,11 +16,11 @@ from fastapi import (
     HTTPException,
     UploadFile,
 )
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.db.models import Dataset, DatasetRow
+from app.db.models import Dataset, DatasetRow, QueryLog
 from app.schemas import DatasetOut, RowOut, UploadResult
 from app.storage import s3
 
@@ -113,3 +113,19 @@ def download_dataset(dataset_id: int, db: Session = Depends(get_db)) -> dict[str
             status_code=404, detail="Для этого датасета нет файла в S3"
         )
     return {"url": s3.presigned_url(dataset.s3_key)}
+
+
+@router.delete("/datasets/{dataset_id}", status_code=204)
+def delete_dataset(dataset_id: int, db: Session = Depends(get_db)) -> None:
+    """Удаляет датасет: его строки, историю запросов и файл в S3."""
+    dataset = db.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(status_code=404, detail="Датасет не найден")
+
+    if dataset.s3_key and s3.is_configured():
+        s3.delete_object(dataset.s3_key)
+
+    # query_log не связан каскадом — чистим вручную; строки удалятся каскадом.
+    db.execute(delete(QueryLog).where(QueryLog.dataset_id == dataset_id))
+    db.delete(dataset)
+    db.commit()

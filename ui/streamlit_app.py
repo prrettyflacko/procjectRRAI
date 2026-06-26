@@ -81,6 +81,11 @@ def api_upload(name: str, data: bytes):
     return r.json()
 
 
+def api_delete(dataset_id: int):
+    r = requests.delete(f"{API_URL}/datasets/{dataset_id}", headers=HEADERS, timeout=60)
+    r.raise_for_status()
+
+
 # ---------------------------------------------------------------- страница
 
 st.set_page_config(page_title="DataMind", page_icon="📊", layout="wide")
@@ -218,10 +223,10 @@ def render_bubble(role: str, text: str) -> None:
 # Навигация одной строкой (одна страница за раз — чтобы chat_input прилипал к низу).
 nav = st.segmented_control(
     "nav",
-    ["📌 Лента", "⬆️ Загрузить", "💬 Спросить", "🕘 История"],
-    default="📌 Лента",
+    ["🗂 Датасеты", "⬆️ Загрузить", "💬 Спросить", "🕘 История"],
+    default="🗂 Датасеты",
     label_visibility="collapsed",
-) or "📌 Лента"
+) or "🗂 Датасеты"
 
 
 # ---------------------------------------------------------------- Загрузить
@@ -314,6 +319,15 @@ else:
         datasets = api_get("/datasets")
         if datasets:
             render_masonry([dataset_card(d) for d in datasets])
+            with st.expander("🗑 Управление датасетами"):
+                opts = {f"#{d['id']} — {d['name']}": d["id"] for d in datasets}
+                to_del = st.multiselect("Выбери, что удалить", list(opts.keys()))
+                if to_del and st.button("Удалить выбранные", key="del_btn"):
+                    with st.spinner("Удаляем..."):
+                        for label in to_del:
+                            api_delete(opts[label])
+                    st.success("Удалено")
+                    st.rerun()
         else:
             st.info("Пока нет датасетов. Загрузи первый на вкладке «Загрузить».")
     except Exception as exc:  # noqa: BLE001

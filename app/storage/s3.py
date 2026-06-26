@@ -43,6 +43,15 @@ def presigned_url(key: str, expires: int = 900) -> str:
     )
 
 
+def delete_object(key: str) -> None:
+    """Удаляет файл из бакета (при удалении датасета)."""
+    try:
+        _client().delete_object(Bucket=settings.SELECTEL_BUCKET, Key=key)
+        logger.info("S3: файл %s удалён", key)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("S3: не удалось удалить %s: %s", key, exc)
+
+
 def verify_uploaded(key: str) -> None:
     """Фоновая проверка: действительно ли файл появился в S3. Результат пишем в лог."""
     try:
