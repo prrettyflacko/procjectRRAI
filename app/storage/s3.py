@@ -25,7 +25,7 @@ def _client():
         endpoint_url=settings.SELECTEL_ENDPOINT,
         aws_access_key_id=settings.SELECTEL_ACCESS_KEY,
         aws_secret_access_key=settings.SELECTEL_SECRET_KEY,
-        region_name="ru-1",
+        region_name=settings.SELECTEL_REGION,
     )
 
 

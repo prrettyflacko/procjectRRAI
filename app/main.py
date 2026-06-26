@@ -1,8 +1,12 @@
 """Точка входа FastAPI-приложения DataMind."""
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
+
+# Чтобы наши логи (например, проверка файла в S3) были видны в выводе сервера.
+logging.basicConfig(level=logging.INFO)
 
 from app.api import datasets, query
 from app.auth import require_api_key

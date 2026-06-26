@@ -20,8 +20,9 @@ class Settings(BaseSettings):
     POLZA_BASE_URL: str = "https://api.polza.ai/api/v1"
     LLM_MODEL: str = "deepseek/deepseek-v4-flash"
 
-    # Selectel Object Storage (S3) — понадобится на Этапе 3
-    SELECTEL_ENDPOINT: str = "https://s3.selectel.ru"
+    # Selectel Object Storage (S3)
+    SELECTEL_ENDPOINT: str = "https://s3.ru-7.storage.selcloud.ru"
+    SELECTEL_REGION: str = "ru-7"
     SELECTEL_ACCESS_KEY: str = ""
     SELECTEL_SECRET_KEY: str = ""
     SELECTEL_BUCKET: str = "datamind-files"
