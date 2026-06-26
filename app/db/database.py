@@ -29,3 +29,14 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+def get_db_connection():
+    """Сырое psycopg2-подключение к БД.
+
+    Нужно агенту v2 (он работает через обычный курсор, а не SQLAlchemy).
+    Использует тот же DATABASE_URL, что и весь проект.
+    """
+    import psycopg2
+
+    return psycopg2.connect(settings.DATABASE_URL)

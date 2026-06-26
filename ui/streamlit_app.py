@@ -74,6 +74,12 @@ def api_query(payload: dict):
     return r.json()
 
 
+def api_query2(payload: dict):
+    r = requests.post(f"{API_URL}/query2", headers=HEADERS, json=payload, timeout=300)
+    r.raise_for_status()
+    return r.json()
+
+
 def api_upload(name: str, data: bytes):
     files = {"file": (name, data, "text/csv")}
     r = requests.post(f"{API_URL}/upload", headers=HEADERS, files=files, timeout=300)
@@ -150,6 +156,8 @@ if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
 if "chat" not in st.session_state:
     st.session_state.chat = []  # список (role, text, sql)
+if "chat2" not in st.session_state:
+    st.session_state.chat2 = []  # диалог агента 2: (role, text, sql, logs)
 
 
 # ---------------------------------------------------------------- helpers
@@ -223,7 +231,7 @@ def render_bubble(role: str, text: str) -> None:
 # Навигация одной строкой (одна страница за раз — чтобы chat_input прилипал к низу).
 nav = st.segmented_control(
     "nav",
-    ["🗂 Датасеты", "⬆️ Загрузить", "💬 Спросить", "🕘 История"],
+    ["🗂 Датасеты", "⬆️ Загрузить", "🤖 Агент 1", "🧪 Агент 2", "🕘 История"],
     default="🗂 Датасеты",
     label_visibility="collapsed",
 ) or "🗂 Датасеты"
@@ -246,9 +254,9 @@ if nav == "⬆️ Загрузить":
                 st.error(f"Ошибка загрузки: {exc}")
 
 
-# ---------------------------------------------------------------- Спросить
+# ---------------------------------------------------------------- Агент 1
 
-elif nav == "💬 Спросить":
+elif nav == "🤖 Агент 1":
     try:
         datasets = api_get("/datasets")
     except Exception as exc:  # noqa: BLE001
@@ -297,6 +305,65 @@ elif nav == "💬 Спросить":
                 with st.expander("Показать SQL"):
                     st.code(sql, language="sql")
             st.session_state.chat.append(("ai", answer, sql))
+
+
+# ---------------------------------------------------------------- Агент 2 (друга)
+
+elif nav == "🧪 Агент 2":
+    st.caption("Альтернативный агент (версия друга) — с пошаговыми логами работы.")
+    try:
+        datasets = api_get("/datasets")
+    except Exception as exc:  # noqa: BLE001
+        st.error(f"Не удалось загрузить датасеты: {exc}")
+        datasets = []
+
+    if not datasets:
+        st.info("Сначала загрузи датасет.")
+    else:
+        options = {f"#{d['id']} — {d['name']}": d["id"] for d in datasets}
+        col_ds, col_clear = st.columns([4, 1])
+        with col_ds:
+            chosen = st.selectbox("Датасет", list(options.keys()), key="ds2")
+        dataset_id = options[chosen]
+        with col_clear:
+            st.write("")
+            if st.session_state.chat2 and st.button("Очистить", key="clear_chat2"):
+                st.session_state.chat2 = []
+                st.rerun()
+
+        for role, text, sql, logs in st.session_state.chat2:
+            render_bubble(role, text)
+            if logs:
+                with st.expander("🔍 Логи агента"):
+                    for line in logs:
+                        st.markdown(line)
+            if sql:
+                with st.expander("Показать SQL"):
+                    st.code(sql, language="sql")
+
+        prompt = st.chat_input("Спроси агента 2...", key="ci2")
+        if prompt and prompt.strip():
+            render_bubble("user", prompt)
+            st.session_state.chat2.append(("user", prompt, None, None))
+            try:
+                with st.spinner("Агент 2 работает..."):
+                    res = api_query2({
+                        "dataset_id": dataset_id,
+                        "question": prompt,
+                        "session_id": st.session_state.session_id,
+                    })
+                answer, sql, logs = res["answer"], res.get("sql"), res.get("logs", [])
+            except Exception as exc:  # noqa: BLE001
+                answer, sql, logs = f"Ошибка: {exc}", None, []
+            render_bubble("ai", answer)
+            if logs:
+                with st.expander("🔍 Логи агента"):
+                    for line in logs:
+                        st.markdown(line)
+            if sql:
+                with st.expander("Показать SQL"):
+                    st.code(sql, language="sql")
+            st.session_state.chat2.append(("ai", answer, sql, logs))
 
 
 # ---------------------------------------------------------------- История

@@ -46,6 +46,12 @@ class QueryResponse(BaseModel):
     sql: str | None = None
 
 
+class Query2Response(BaseModel):
+    answer: str
+    sql: str | None = None
+    logs: list[str] = []
+
+
 class QueryLogOut(BaseModel):
     id: int
     dataset_id: int
